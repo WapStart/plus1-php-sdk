@@ -91,7 +91,6 @@ class Plus1BannerAsker
 
 	private $url				= null;
 	private $headerList			= array();
-	private $responseHeaderList	= array();
 
 	/**
 	 * }}} runtime cache
@@ -454,7 +453,6 @@ class Plus1BannerAsker
 		$curl = curl_init($this->getUrl());
 
 		curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($curl, CURLOPT_HEADER, true);
 
 		curl_setopt($curl, CURLOPT_TIMEOUT_MS, $this->getTimeout());
 
@@ -482,6 +480,8 @@ class Plus1BannerAsker
 				: null
 		);
 
+		curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+
 		$response = curl_exec($curl);
 
 		if ($response === false) {
@@ -494,23 +494,20 @@ class Plus1BannerAsker
 				);
 		}
 
-		list($header, $body) = explode("\r\n\r\n", $response);
+		$status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
 
 		curl_close($curl);
 
-		$this->responseHeaderList = explode("\r\n", $header);
-
-		if (substr($this->responseHeaderList[0], -6) != '200 OK') {
+		if ($status != 200) {
 			if ($this->isSilent())
 				return null;
 			else
 				throw new Plus1BannerAskerException(
-					'http status of response is not equal to 200: '
-						.$this->responseHeaderList[0]
+					sprintf('HTTP status of response is not equal to 200: %d', $status)
 				);
 		}
 
-		if (trim($body) == self::BANNER_LABEL) {
+		if (trim($response) == self::BANNER_LABEL) {
 			if ($this->isSilent())
 				return null;
 			else
@@ -519,7 +516,7 @@ class Plus1BannerAsker
 				);
 		}
 
-		return $body;
+		return $response;
 	}
 
 	public function getUrl()
